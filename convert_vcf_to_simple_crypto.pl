@@ -7,7 +7,7 @@ open (INPUTFILE, $ARGV[0]);
 open (OUTPUTALLELES, "> $ARGV[1]");
 
 if (@ARGV < 2) {
-    die "Improper number of arguments. Usage: perl convert_vcf_to_simple_100.pl inputvcffile outfile\n";
+    die "Improper number of arguments. Usage: perl convert_vcf_to_simple_crypto.pl inputvcffile outfile\n";
 }
 
 $numstrains=39;
