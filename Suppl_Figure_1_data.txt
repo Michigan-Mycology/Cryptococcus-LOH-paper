@@ -1,0 +1,15 @@
+Replicate	Group	Prop_mortality
+Control	PBS	0
+Anc1	SSD-719	0.1
+Anc2	SSE-761	0.1
+P1W10	Larvae	0.0
+P2W10	Larvae	0.1
+P3W10	Larvae	0.0
+P4W10	Larvae	0.4
+P5W10	Larvae	0.3
+P6W10	Larvae	0.5
+CB-100-1	Beer	0.2
+CB-100-2	Beer	0.2
+CB-100-3	Beer	0.2
+CB-100-4	Beer	0.3
+CB-100-6	Beer	0.2
