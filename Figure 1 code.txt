@@ -1,0 +1,29 @@
+library(ggplot2)
+#Figure 1A
+pdf("rel_fitness_doubling_crypto.pdf", height = 5, width = 5)
+data<-read.table("means_rel_fitness_crypto.txt", header=TRUE)
+p <- ggplot(data, aes(Environment, Rel.fitness.DT)) 
+p <- p + geom_boxplot() + scale_x_discrete(limits=c("Beer", "Cana", "NaCl", "YPD", "Wine"))
+p <- p + geom_point(aes(y=Rel.fitness.DT), position = position_dodge(width=0.75)) +
+xlab("Environment") + ylab("Rel. Fitness (Doubling time)") + theme_bw() + theme(panel.border = element_blank(), axis.title=element_text(size=16), axis.text = element_text(size = 14),
+panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + geom_hline(yintercept = 1, linetype = "dashed")
+p
+dev.off()
+#Figure 1B
+pdf("rel_fitness_EOG_crypto.pdf", height = 5, width = 5)
+p <- ggplot(data, aes(Environment, Rel.Fitness.EOG)) 
+p <- p + geom_boxplot() + scale_x_discrete(limits=c("Beer", "Cana", "NaCl", "YPD", "Wine")) 
+p <- p + geom_point(aes(y=Rel.Fitness.EOG), position = position_dodge(width=0.75)) +
+xlab("Environment") + ylab("Rel. Fitness (EOG)") + theme_bw() + theme(panel.border = element_blank(), axis.title=element_text(size=16), axis.text = element_text(size = 14),
+panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + geom_hline(yintercept = 1, linetype = "dashed")
+p
+dev.off()
+#Figure 1C
+pdf("rel_fitness_Comp_crypto.pdf", height = 5, width = 5)
+p <- ggplot(data, aes(Environment, Rel.Fitness.Comp)) 
+p <- p + geom_boxplot() + scale_x_discrete(limits=c("Beer", "Cana", "NaCl", "YPD", "Wine")) 
+p <- p + geom_point(aes(y=Rel.Fitness.Comp), position = position_dodge(width=0.75)) +
+xlab("Environment") + ylab("Rel. Fitness (Comp)") + theme_bw() + theme(panel.border = element_blank(), axis.title=element_text(size=16), axis.text = element_text(size = 14),
+panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + geom_hline(yintercept = 1, linetype = "dashed")
+p
+dev.off()
