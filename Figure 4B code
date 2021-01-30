@@ -1,0 +1,8 @@
+# Make simple bar graph
+data<-read.table("crypto_mechanisms_counts.txt", header=TRUE)
+p <- ggplot(data, aes(x=factor(Type), y=Count)) + 
+  geom_bar(stat="identity", color="black", position=position_dodge(), fill = "black") + theme_classic(base_size = 30) +
+ labs(x = "Mechanism",
+       y = "Count")
+>>>>mechanisms_bar_chart.pdf
+# Became Figure 4B
