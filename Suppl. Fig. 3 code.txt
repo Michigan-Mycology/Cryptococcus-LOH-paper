@@ -1,0 +1,87 @@
+data<-read.table("all_strains_bedgraph_forR_with_mid.txt", header=TRUE)
+mids<-read.table("midpoints.txt", header=TRUE)
+
+library("gridExtra")
+library("grid")
+
+CB1data<-subset(data, Strain=='CB-100-1')
+CB2data<-subset(data, Strain=='CB-100-2')
+CB3data<-subset(data, Strain=='CB-100-3')
+CB5data<-subset(data, Strain=='CB-100-5')
+CB6data<-subset(data, Strain=='CB-100-6')
+CC1data<-subset(data, Strain=='CC-100-1')
+CC2data<-subset(data, Strain=='CC-100-2')
+CC3data<-subset(data, Strain=='CC-100-3')
+CC4data<-subset(data, Strain=='CC-100-4')
+CC5data<-subset(data, Strain=='CC-100-5')
+CC6data<-subset(data, Strain=='CC-100-6')
+
+CB1plot<-ggplot(CB1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 350) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-1")
+CB2plot<-ggplot(CB2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-2")
+CB3plot<-ggplot(CB3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 125) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-3")
+CB5plot<-ggplot(CB5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-5")
+CB6plot<-ggplot(CB6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-6")
+
+CC1plot<-ggplot(CC1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 300) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-1")
+CC2plot<-ggplot(CC2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-2")
+CC3plot<-ggplot(CC3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-3")
+CC4plot<-ggplot(CC4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-4")
+CC5plot<-ggplot(CC5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","orange", "black","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-5")
+CC6plot<-ggplot(CC6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 100) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-6")
+
+grid.arrange(CB1plot, CB2plot, CB3plot, CB5plot, CB6plot, textGrob("Chromosome", y=0.9, gp = gpar(fontsize =13)), CC1plot, CC2plot, CC3plot, CC4plot, CC5plot, CC6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("Beer                                                                     Canavanine", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome", x=0.72, y=0.5, just ="left", gp = gpar(fontsize =13)))	
