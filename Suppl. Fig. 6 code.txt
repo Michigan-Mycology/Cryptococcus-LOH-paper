@@ -1,0 +1,37 @@
+data<-read.table("all_strains_bedgraph_forR_with_mid.txt", header=TRUE)
+mids<-read.table("midpoints.txt", header=TRUE)
+
+library("gridExtra")
+library("grid")
+
+invitrodata<-subset(data, Strain=='SSD719_vitro')
+invivodata<-subset(data, Strain=='SSD719_vivo')
+EM3data<-subset(data, Strain=='EM3')
+YSB121data<-subset(data, Strain=='YSB121')
+
+invitroplot<-ggplot(invitrodata, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black","grey", "black")) + ylim(0, 100) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("SSD719 in vitro")
+invivoplot<-ggplot(invivodata, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black"))  + ylim(0, 250) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("SSD719 in vivo")
+EM3plot<-ggplot(EM3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("EM3")
+YSB121plot<-ggplot(YSB121data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("YSB121")
+
+grid.arrange(invitroplot, invivoplot, EM3plot, YSB121plot,layout_matrix = cbind(c(1, 2, 3, 4)), top = textGrob("Ancestors", x=0.475, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosomes", x=0.45, y=0.5, just ="left", gp = gpar(fontsize =13)))
