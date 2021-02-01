@@ -1,0 +1,88 @@
+CN1data<-subset(data, Strain=='CN-100-1')
+CN2data<-subset(data, Strain=='CN-100-2')
+CN3data<-subset(data, Strain=='CN-100-3')
+CN4data<-subset(data, Strain=='CN-100-4')
+CN5data<-subset(data, Strain=='CN-100-5')
+CN6data<-subset(data, Strain=='CN-100-6')
+CW1data<-subset(data, Strain=='CW-100-1')
+CW2data<-subset(data, Strain=='CW-100-2')
+CW3data<-subset(data, Strain=='CW-100-3')
+CW4data<-subset(data, Strain=='CW-100-4')
+CW5data<-subset(data, Strain=='CW-100-5')
+CW6data<-subset(data, Strain=='CW-100-6')
+
+CN1plot<-ggplot(CN1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-1")
+CN2plot<-ggplot(CN2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black"))  + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-2")
+CN3plot<-ggplot(CN3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-3")
+CN4plot<-ggplot(CN4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-4")
+CN5plot<-ggplot(CN5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black")) + ylim(0, 175) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-5")
+CN6plot<-ggplot(CN6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+     scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-6")
+
+CW1plot<-ggplot(CW1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-1")
+CW2plot<-ggplot(CW2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 125) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-2")
+CW3plot<-ggplot(CW3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 125) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-3")
+CW4plot<-ggplot(CW4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-4")
+CW5plot<-ggplot(CW5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-5")
+CW6plot<-ggplot(CW6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-6")
+
+grid.arrange(CN1plot, CN2plot, CN3plot, CN4plot, CN5plot, CN6plot, CW1plot, CW2plot, CW3plot, CW4plot, CW5plot, CW6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("NaCl                                                                           Wine", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome                                                                     Chromosome", x=0.22, y=0.5, just ="left", gp = gpar(fontsize =13)))	
