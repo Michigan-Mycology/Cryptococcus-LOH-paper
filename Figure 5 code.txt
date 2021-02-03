@@ -1,0 +1,8 @@
+library("chromPlot")
+crypto<-read.table("crypto_chroms.txt", header=TRUE)
+chromPlot(gaps=crypto)
+heteroz<-read.table("heterozygosity_10kb_for_chromplot_new.txt", header=TRUE)
+LOH<-read.table("crypto_LOH_SNP_data_for_chromplot_new.txt", header=TRUE)
+postscript("Figure 5.eps", width=14, height=7, horizontal=FALSE)
+chromPlot(gaps=crypto, stat=heteroz, statCol="Het", statName="Heterozygosity", statTyp="p", segment=LOH, noHist=TRUE, figCols=7, scex=0.7, spty=20, statSumm="none", colSegments=c("green","red"), colSegments2="red")
+dev.off()
