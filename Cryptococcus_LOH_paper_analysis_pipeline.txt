@@ -1,0 +1,1252 @@
+This is the full pipeline used for analyzing the data
+Files with @@@@ are posted to github
+Larger files with &&&& are posted to figshare
+Files with >>>> are just additional output files
+Raw unprocessed files are posted to SRA with the accession numbers ZZZZZ-ZXXXX
+
+##############################
+######## GATHER DATA #########
+##############################
+
+# This is a list of all the files
+# Data was run across multiple runs of HiSeq
+# For information on conversion of sample number to strain numbers see: "Illumina data summmary Crypto.csv"
+# List of files
+
+##############################
+#### TRIM AND CONCAT DATA ####
+##############################
+
+# Trim data using trimmomatic
+
+#!/bin/bash
+
+FFILES=/scratch/tyjames_fluxod/tyjames/crypto/raw_reads/*R1_001.fastq*
+
+for f in $FFILES
+do
+  	g=${f/.fastq/.trimmed.paired.fastq}
+        h=${f/R1/R2}
+        i=${h/.fastq/.trimmed.paired.fastq}
+        j=${f/.fastq/.trimmed.unpaired.fastq}
+        k=${h/.fastq/.trimmed.unpaired.fastq}
+        java -jar /sw/lsa/centos7/trimmomatic/0.36/bin/trimmomatic-0.36.jar PE -trimlog log.txt $f $h $g $j $i $k \
+        HEADCROP:12 LEADING:33 TRAILING:24 SLIDINGWINDOW:4:26 ILLUMINACLIP:/sw/lsa/centos7/trimmomatic/0.36/adapters/NexteraPE-PE.fa:3:30:10 MINLEN:50
+done
+
+# Unpack and concat
+
+gunzip /scratch/tyjames_flux/tyjames/crypto/trimmed_paired/*.gz
+cat 69506*R1* 80535*R1* >CB-100-1_R1.trimmed.paired.fastq
+cat 69506*R2* 80535*R2* >CB-100-1_R2.trimmed.paired.fastq
+etc.
+
+##############################
+######## MAP READS ###########
+##############################
+
+# A. First index reads in bwa:
+
+module load samtools/1.2
+# Loaded samtools version 0.1.19 (default)
+module load bwa
+# Loaded bwa version 0.7.8 (default)
+
+# Index Crypto genome
+bwa index -p H99 Cryptococcus_neoformans_H99.unmasked.fasta
+
+#!/bin/bash
+
+FFILES=/scratch/tyjames_flux/tyjames/crypto/trimmed_paired_cat/*R1.trimmed.paired.fastq
+for f in $FFILES
+do
+  	g=${f/R1/R2}
+    h=${f/_R1.trimmed.paired.fastq/.sam}
+	bwa mem -t 8 -M ../H99 $f $g > $h
+done
+
+
+##############################
+# PICARD SORT ADD READ GROUP #
+##############################
+
+# Next, we used Picard to make a sorted bam, mark duplicates, add readgroups (and sample name), index the bam
+# Before this the reference file needs to be prepared
+# First use CreateSequenceDictionary.jar from picard
+
+java -jar /sw/med/centos7/picard/1.79/CreateSequenceDictionary.jar R= /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta O= /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.dict
+
+module load picard
+# Loaded picard version 2.4.1 (default)
+
+module load python-anaconda3
+
+module load gatk
+# Loaded gatk version 4.0.0 (default)
+
+module load samtools
+# Loaded samtools version 0.1.19-44428cd (default)
+
+# Index reference genome
+samtools faidx /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta
+
+# Then sort bam, mark duplicates, add readgroups (and sample name), index the bam
+
+#!/bin/bash
+
+FFILES=/scratch/tyjames_flux/tyjames/crypto/sam/*.sam
+
+counter=1
+for f in $FFILES
+do
+  	g=${f/.sam/.sorted.bam}
+    h=${f/.sam/.dedupped.sorted.bam}
+    i=${f/.sam/.duplicate.metrics.txt}
+    j=${f/.sam/.dedupped.sorted.addrg.bam}
+    k=$(basename $f)
+    l=${k/.sam/}
+    java -jar /sw/med/centos7/picard/2.4.1/picard.jar SortSam INPUT=$f OUTPUT=$g SORT_ORDER=coordinate
+    java -jar /sw/med/centos7/picard/2.4.1/picard.jar MarkDuplicates INPUT=$g OUTPUT=$h METRICS_FILE=$i
+    java -jar /sw/med/centos7/picard/2.4.1/picard.jar AddOrReplaceReadGroups INPUT=$h OUTPUT=$j RGID=$counter RGLB=lib1 RGPU=1 RGPL=illumina RGSM=$l
+    java -jar /sw/med/centos7/picard/2.4.1/picard.jar BuildBamIndex INPUT=$j
+    counter=$((counter+1))
+done
+
+##############################
+##### +BASE RECALIBRATION ####
+##############################
+
+# Use SNPs from assemblies of two reference genomes
+
+# Align Cryptococcus_neoformans_H99.unmasked.fasta & Cryne_JEC21_1_AssemblyScaffolds.fasta in parsnp and harvesttools using Cryptococcus_neoformans_H99.unmasked.fasta as reference
+# These were downloaded from JGI's Mycoportal in 2019
+
+# First use Parsnp to align JEC21 to H99
+#!/bin/bash
+#SBATCH --job-name=crypto
+#SBATCH --mail-user=tyjames@umich.edu
+#SBATCH --mail-type=BEGIN,END
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --mem-per-cpu=4gb 
+#SBATCH --time=20:00:00
+#SBATCH --account=tyjames1
+#SBATCH --output=%x-%j.log
+
+/home/tyjames/Parsnp-Linux64-v1.2/parsnp -r /scratch/tyjames_root/tyjames1/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta -d /scratch/tyjames_root/tyjames1/tyjames/crypto/assemblies -p 4
+>>>>cryptoAD.ggr
+
+~/harvesttools-Linux64-v1.2/harvesttools -i cryptoAD.ggr -V cryptoAD.ref.vcf
+>>>>cryptoAD.ref.vcf
+
+# There are 994,415 SNPs that passed
+# Remove the SNPs that didn't pass
+perl parse_vcf.pl cryptoAD.ref.vcf cryptoAD.ref.passed.vcf
+&&&&cryptoAD.ref.passed.vcf
+
+# Modify the header to work with GATK by adding these lines in front of the SNP data
+##fileformat=VCFv4.1
+##FILTER=<ID=IND,Description=Column contains indel>
+##FILTER=<ID=N,Description=Column contains N>
+##FILTER=<ID=LCB,Description=LCB smaller than 200bp>
+##FILTER=<ID=CID,Description=SNP in aligned 100bp window with < 50% column % ID>                                                                        
+##FILTER=<ID=ALN,Description=SNP in aligned 100b window with > 20 indels>                                                                               
+#CHROM  POS     ID	REF     ALT     QUAL    FILTER  INFO    FORMAT  H99	JEC21
+
+module load gatk
+gatk --java-options "-Xmx4g" IndexFeatureFile -F cryptoAD.ref.passed.vcf
+&&&&cryptoAD.ref.passed.vcf.idx
+
+# This code uses the high quality SNPs between JEC21 & H99 to mask the bam files of SNPs
+# To generate base recalibration using bona fide SNPs
+
+#!/bin/bash
+FFILES=*.dedupped.sorted.addrg.bam
+
+for f in $FFILES
+do
+	g=${f/.dedupped.sorted.addrg.bam/.recal_data.table}
+	h=${f/.dedupped.sorted.addrg.bam/.recalib.dedupped.sorted.addrg.bam}
+	gatk --java-options "-Xmx4g" BaseRecalibrator -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta \
+ 	-I $f --known-sites /scratch/tyjames_flux/tyjames/crypto/cryptoAD.ref.passed.vcf -O $g
+	gatk --java-options "-Xmx4g" ApplyBQSR -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta -I $f --bqsr-recal-file $g -O $h
+done
+
+##############################
+###### VARIANT DISCOVERY #####
+##############################
+
+# Variants were called using GATK Haplotypecaller
+
+module load gatk
+
+#!/bin/bash
+FFILES=/scratch/tyjames_flux/tyjames/crypto/base_recalib/CB*.recalib.dedupped.sorted.addrg.bam
+
+for f in $FFILES
+do
+  	g=${f/.recalib.dedupped.sorted.addrg.bam/.g.vcf}
+        gatk --java-options "-Xmx16g" HaplotypeCaller -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta -I $f -O $g -ERC GVCF
+done
+
+# Now need to combine the GVCFs into one VCF
+
+#!/bin/bash
+
+gatk CombineGVCFs -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta \
+--variant CB-100-1.g.vcf \
+--variant CB-100-2.g.vcf \
+--variant CB-100-3.g.vcf \
+--variant CB-100-5.g.vcf \
+--variant CB-100-6.g.vcf \
+--variant CC-100-1.g.vcf \
+--variant CC-100-2.g.vcf \
+--variant CC-100-3.g.vcf \
+--variant CC-100-4.g.vcf \
+--variant CC-100-5.g.vcf \
+--variant CC-100-6.g.vcf \
+--variant CN-100-1.g.vcf \
+--variant CN-100-2.g.vcf \
+--variant CN-100-3.g.vcf \
+--variant CN-100-4.g.vcf \
+--variant CN-100-5.g.vcf \
+--variant CN-100-6.g.vcf \
+--variant CW-100-1.g.vcf \
+--variant CW-100-2.g.vcf \
+--variant CW-100-3.g.vcf \
+--variant CW-100-4.g.vcf \
+--variant CW-100-5.g.vcf \
+--variant CW-100-6.g.vcf \
+--variant CY-100-1.g.vcf \
+--variant CY-100-2.g.vcf \
+--variant CY-100-3.g.vcf \
+--variant CY-100-4.g.vcf \
+--variant CY-100-5.g.vcf \
+--variant CY-100-6.g.vcf \
+--variant EM3.g.vcf \
+--variant P1W10.g.vcf \
+--variant P2W10.g.vcf \
+--variant P3W10.g.vcf \
+--variant P4W10.g.vcf \
+--variant P5W10.g.vcf \
+--variant P6W10.g.vcf \
+--variant SSD719_vitro.g.vcf \
+--variant SSD719_vivo.g.vcf \
+--variant YSB121.g.vcf \
+-O crypto.LOH1.combined.g.vcf
+
+# Convert from g.vcf to .vcf
+gatk GenotypeGVCFs -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta \
+--variant crypto.LOH.combined.g.vcf -O crypto.LOH.snps.unfiltered.vcf
+
+# Total variants
+# 1,466,493 SNPs and indels
+&&&&crypto.LOH.snps.unfiltered.vcf
+
+# Then extract only the SNPs
+# 1,265,025 SNPs
+gatk SelectVariants -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta -V crypto.LOH.snps.unfiltered.vcf -select-type SNP -O crypto.LOH.snps.only.unfiltered.vcf  
+&&&&crypto.LOH.snps.only.unfiltered.vcf
+
+##############################
+##### VARIANT FILTRATION #####
+##############################
+
+# To determine filtering criteria, we data including QUAL, AC, AN, QD, MQ, BaseQRankSum, ClippingRankSum, DP, MQRankSum, ReadPosRankSum, SOR
+
+# Uses script convert_vcf_to_SNP_qual_data.pl
+perl convert_vcf_to_SNP_qual_data.pl crypto.LOH.snps.only.unfiltered.vcf statistics.crypto.LOH.snps.only.unfiltered.txt
+>>>>statistics.crypto.LOH.snps.only.unfiltered.txt
+
+# Then plot data in R
+data<-read.table("statistics.crypto.LOH.snps.only.unfiltered.txt", header=TRUE)
+x<-log(data[,3],10)
+hist(x, breaks=100, xlab="log10(QUAL)", main="QUAL")
+# There are 39 strains
+hist(data[,4], breaks=100, xlab="Allele Count of ALT alleles", main="AC")
+hist(data[,5], breaks=40, xlab="Total number of called alleles", main="AN")
+hist(data[,6], main="BaseQRankSum", breaks=100,  xlab="BaseQRankSum")
+hist(data[,8], main="FS (Fisher Strand)", xlab="FS",breaks=2000, xlim=c(0,50))
+hist(data[,9], main="DP (Depth)", xlab="DP", breaks=300, xlim=c(0,20000))
+# plots log(QUAL) versus DP
+plot (x, data[,9])
+hist(data[,10], main="MQ (RMS Mapping Quality)", xlab="MQ", breaks=5000, xlim=c(55,62))
+hist(data[,11], main="MQRankSum",  xlab="MQRankSum", breaks=500, xlim=c(-1,1))
+hist(data[,12], main="QD (Quality by Depth)", breaks=100, xlab="QD")
+# Plot QD by FS
+plot (data[,12],data[,8])
+hist(data[,13], main="ReadPosRankSum", xlab="ReadPosRankSum", breaks=100)
+plot (x,data[,13])
+hist(data[,14], main="SOR (Symmetric Odds Ratio", xlab="SOR", breaks=100)
+
+# Average depth per SNP
+mean(data[,9])
+[1] 6750.396
+# That means the average depth per library = 173X
+
+# These data were used to adjust cutoffs for Variant Filtration
+
+gatk VariantFiltration \
+   -R Cryptococcus_neoformans_H99.unmasked.fasta \
+   -V vcf/crypto.LOH.snps.only.unfiltered.vcf \
+   -O vcf/crypto.LOH.snps.only.qualfiltered.vcf \
+   --filter-expression "BaseQRankSum < -5.0 || BaseQRankSum > 5.0 || DP > 5000.0 || MQ < 59.0 || QD < 5.0 || FS > 15.0 || ReadPosRankSum < -5.0 || ReadPosRankSum > 5.0 || QUAL < 1000 || SOR > 4.0" \
+   --filter-name "qual_filtered"
+>>>>crypto.LOH.snps.only.qualfiltered.vcf
+   
+# Next we removed the reads that failed qual_filtered
+gatk SelectVariants \
+   -R Cryptococcus_neoformans_H99.unmasked.fasta \
+   -V vcf/crypto.LOH.snps.only.qualfiltered.vcf \
+   -O vcf/crypto.LOH.snps.only.qualfiltered.pruned.vcf \
+   --exclude-filtered \
+&&&&crypto.LOH.snps.only.qualfiltered.pruned.vcf
+   
+# 911,159 SNPs passed filter
+# 353,866 failed filter
+
+##############################
+##### FILTER and REFORMAT ####
+##############################
+
+# We have the filtered vcf file without indels and we need to generate a data set that is simpler to analyze
+# Filtration: 	A) depth per sample (between < 18X and > 350X)
+				B) if many of the strains were missing data > 25% (suggests locus is hard to sequence)
+				C) Code as N if the GQ (genotype quality is < 99)
+# Use the script convert_vcf_to_simple_crypto.pl
+@@@@convert_vcf_to_simple_crypto.pl
+perl convert_vcf_to_simple_crypto.pl crypto.LOH.snps.only.qualfiltered.pruned.vcf crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.txt
+>>>>crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.txt
+
+# Second round of filtering
+# This is needed to determine the differences between parental strains and to create clean data sets with only
+# SNPs that are found in the in vivo or in vitro ancestor
+# Filtration: 	A) if ancestor is not heterozygous (use SSD719 in vitro ancestor)
+				B) if the ancestor is different, print 
+# Use the script extract_hq_snps_crypto.pl
+@@@@extract_hq_snps_crypto.pl
+perl extract_hq_snps_crypto.pl crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.txt crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.txt
+&&&&crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.txt
+
+# This left 560,296 SNPs remaining
+# Note this should exclude any new mutations
+
+##############################
+### PLOT GENOME SCALE LOH ####
+##############################
+
+# We now have a file with genotypes but they are written like (AA, AC, etc.)
+# Use a script convert_simple_to_flat_crypto.pl to replace for each, using A, B, C (A=serotype A, B= heterozygous, D= serotype D)
+perl convert_simple_to_flat_crypto.pl crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.txt crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.txt
+>>>>crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.txt
+
+# Now, we need to mode the counts in windows of size 10,000 to get a large-scale view of what's going on.
+# Use the script average_genotypes_crypto.pl
+@@@@average_genotypes_crypto.pl
+perl average_genotypes_crypto.pl crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.txt crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.averaged.txt
+>>>>crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.averaged.txt
+
+# Then make plots in R
+# First convert to long format
+perl convert_simple_to_long_crypto.pl crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.averaged.txt crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.averaged.long.txt 39
+@@@@crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.averaged.long.txt
+
+# Then print to stripchart in R
+# This gets annotated to be Figure 3
+data<-read.table("crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened.averaged.long.txt",header=TRUE)
+pdf("Figure_3.pdf", height = 8, width = 12)
+stripchart( data$Position ~ Strain, data=data, method="stack", subset = Genotype == "B", col="#CDBEC9", pch=124, xlab="Position (bp)", cex=0.7, yaxt="n")
+labels<-c("CB-100-1", "CB-100-2", "CB-100-3", "CB-100-5", "CB-100-6", "CC-100-1", 
+"CC-100-2", "CC-100-3", "CC-100-4", "CC-100-5", "CC-100-6", "CN-100-1", "CN-100-2", "CN-100-3", "CN-100-4",
+"CN-100-5", "CN-100-6", "CW-100-1", "CW-100-2", "CW-100-3", "CW-100-4", "CW-100-5", "CW-100-6", "CY-100-1",
+"CY-100-2", "CY-100-3", "CY-100-4", "CY-100-5", "CY-100-6", "P1W10", "P2W10", "P3W10", "P4W10", "P5W10", "P6W10", "SSD719_vitro", "SSD719_vivo", "EM3", "YSB121")
+axis(4,las=2, labels=labels, at= seq(1,39,by=1),cex.axis=0.4)
+axis(2,las=2, labels=labels, at= seq(1,39,by=1),cex.axis=0.4)
+stripchart( data$Position ~ Strain, data=data, method="stack", subset = Genotype == "A", col="#ED1F24", add=T, pch=124, cex=0.7)
+stripchart( data$Position ~ Strain, data=data, method="stack", subset = Genotype == "D", col="#3852A4", add=T, pch=124, cex=0.7)
+abline (v=0, lty=2)
+abline (v= 2291499, lty=2)
+abline (v=3913174, lty=2)
+abline (v=5488315, lty=2)
+abline (v=6573120, lty=2)
+abline (v=8388095, lty=2)
+abline (v=9810558, lty=2)
+abline (v=11210061, lty=2)
+abline (v=12608754, lty=2)
+abline (v=13795562, lty=2)
+abline (v=14855526, lty=2)
+abline (v=16417520, lty=2)
+abline (v=17191582, lty=2)
+abline (v=17948326, lty=2)
+abline (v=18874889, lty=2)
+dev.off()
+>>>> Figure_3.pdf
+
+##############################
+### FITNESS AND VIRULENCE ####
+##############################
+
+# These calculations are for the strains evolved in larvae
+# They are contrasted with those evolved in beer and the ancestor
+
+# Data for survivorship 5 days post injection is used for Suppl. Figure 1.
+# Graph was made in GraphPad Prism 7
+# Data is in file:
+@@@@Suppl_Figure_1_data.txt
+
+# Coinjection with labeled ancestral genotype SSE-761 used to estimate relative fitness of larvae evolved 
+# Colony counts estimated in OpenCFU
+# Relative fitness is calculated relative to the average ancestor fitness, set to 1
+# Three replicate injections
+# Graph was made in GraphPad Prism 7
+# Data is in file:
+@@@@Figure_2_data.txt
+
+# Generate box and whisker plots for fitness in evolved clones
+# Compile relative fitness data in file:
+@@@@growth_curve_results_crypto.txt
+@@@@competition_results_crypto.txt
+
+# Calculate means of strains in R
+gcdata<-read.table("growth_curve_results_crypto.txt", header=TRUE)
+means_doubling<-aggregate(x = gcdata$Doubling.time, by = list(gcdata$Media,gcdata$Strain), FUN = "mean")
+write.table(means_doubling, file = "means_doubling_crypto.csv", sep = ",")
+>>>>means_doubling_crypto.csv
+means_EOG<-aggregate(x = gcdata$EOG, by = list(gcdata$Media,gcdata$Strain), FUN = "mean")
+write.table(means_EOG, file = "means_EOG_crypto.csv", sep = ",")
+>>>>means_EOG_crypto.csv
+compdata<-read.table("competition_results_crypto.txt", header=TRUE)
+means_comp<-aggregate(x = compdata$Rel.fitness.Comp, by = list(compdata$Media,compdata$Strain), FUN = "mean")
+write.table(means_comp, file = "means_comp_crypto.csv", sep = ",")
+>>>>means_comp_crypto.csv
+
+# Composite data and divide by ancestor values to get relative fitness
+@@@@means_rel_fitness_crypto.txt
+
+# These 3 figures composited to make Figure 1
+
+library(ggplot2)
+#Figure 1A
+pdf("rel_fitness_doubling_crypto.pdf", height = 5, width = 5)
+data<-read.table("means_rel_fitness_crypto.txt", header=TRUE)
+p <- ggplot(data, aes(Environment, Rel.fitness.DT)) 
+p <- p + geom_boxplot() + scale_x_discrete(limits=c("Beer", "Cana", "NaCl", "YPD", "Wine"))
+p <- p + geom_point(aes(y=Rel.fitness.DT), position = position_dodge(width=0.75)) +
+xlab("Environment") + ylab("Rel. Fitness (Doubling time)") + theme_bw() + theme(panel.border = element_blank(), axis.title=element_text(size=16), axis.text = element_text(size = 14),
+panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + geom_hline(yintercept = 1, linetype = "dashed")
+p
+dev.off()
+#Figure 1B
+pdf("rel_fitness_EOG_crypto.pdf", height = 5, width = 5)
+p <- ggplot(data, aes(Environment, Rel.Fitness.EOG)) 
+p <- p + geom_boxplot() + scale_x_discrete(limits=c("Beer", "Cana", "NaCl", "YPD", "Wine")) 
+p <- p + geom_point(aes(y=Rel.Fitness.EOG), position = position_dodge(width=0.75)) +
+xlab("Environment") + ylab("Rel. Fitness (EOG)") + theme_bw() + theme(panel.border = element_blank(), axis.title=element_text(size=16), axis.text = element_text(size = 14),
+panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + geom_hline(yintercept = 1, linetype = "dashed")
+p
+dev.off()
+#Figure 1C
+pdf("rel_fitness_Comp_crypto.pdf", height = 5, width = 5)
+p <- ggplot(data, aes(Environment, Rel.Fitness.Comp)) 
+p <- p + geom_boxplot() + scale_x_discrete(limits=c("Beer", "Cana", "NaCl", "YPD", "Wine")) 
+p <- p + geom_point(aes(y=Rel.Fitness.Comp), position = position_dodge(width=0.75)) +
+xlab("Environment") + ylab("Rel. Fitness (Comp)") + theme_bw() + theme(panel.border = element_blank(), axis.title=element_text(size=16), axis.text = element_text(size = 14),
+panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + geom_hline(yintercept = 1, linetype = "dashed")
+p
+dev.off()
+
+##############################
+#### DETERMINE LOH STATS #####
+##############################
+
+# Now we need to take the SNP data and count the number and lengths of LOH events.
+# This is not trivial because it needs to deal with chromosome ends
+# All of the LOH events are manually checked in Tablet (bam file) and IGV (vcf file) to check all of the small LOH events to see if they were positive or false.
+# First write script that parses each strain's data and calculates the size of each LOH event
+# Before doing that need to replace NA with N
+>>>>crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_NArecode.txt
+
+# The create a data set without rows with N's.
+# This creates a highly clean data set
+# It was observed that using rows with N's greatly increased false positives
+# Before removing N's there are 560296 SNPs
+
+# Now remove lines with N's
+awk '!/N/' crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_NArecode.txt > crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns.txt
+&&&&crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns.txt
+
+# There are 380577 SNPs remaining
+
+# Script perl calculate_LOH_lengths_crypto_100_new.pl crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns.txt crypto.LOH.sizes.txt 39 
+>>>>crypto.LOH.sizes.txt
+
+# That file is brought into Excel and then manual verification was done.
+# The events were divided into mechanisms
+# Data summarized in file 
+>>>>crypto.LOH.sizes_and_mechanisms.xlsx
+
+# Exported counts of different mechanisms into  
+@@@@crypto_mechanisms_counts.txt
+
+# Make simple bar graph
+data<-read.table("crypto_mechanisms_counts.txt", header=TRUE)
+p <- ggplot(data, aes(x=factor(Type), y=Count)) + 
+  geom_bar(stat="identity", color="black", position=position_dodge(), fill = "black") + theme_classic(base_size = 30) +
+ labs(x = "Mechanism",
+       y = "Count")
+>>>>mechanisms_bar_chart.pdf
+# Became Figure 4B
+
+##############################
+###### CNV/SV DETECTION ######
+##############################
+
+# Estimate aneuploidy by looking at mean coverage of reads across chromosomes
+# Calculate mean depth for SNPs in windows of size 1 kb (non overlapping).
+# Whole chromosome aneuploidies were called if average coverage of a chromosome differs >35% from other chromosomes in the same line (likelihood P , 0.001, x2-test)
+
+# Use bedtools which will take all reads 
+module load bedtools2/2.29.2
+bedtools makewindows -g Cryptococcus_neoformans_H99.unmasked.fasta.fai -w 1000 > H99_windows_1kb.bed
+# Look through all files to get bam to bed and then get the mean coverage
+FFILES=/scratch/tyjames_root/tyjames/tyjames/Cryptococcus/base_recalib/*recalib.*.bam
+
+for f in $FFILES
+do
+  	g=${f/.bam/.bed}
+    h=${f/.bam/.MeanCoverageBED.bedgraph}
+    bedtools bamtobed -i $f > $g
+    bedtools coverage -a H99_windows_1kb.bed -b $g -mean > $h
+done
+
+# The following is used to generate Suppl. Figures 2-6
+# loop through bedgraph files and append strain name as last column
+# cat all the bedgraphs
+# open in R and use aggregate to calculate strain and chromosome means
+# Use R to generate a table of strain by chromosome means
+# And a vector of averages across chromosomes.
+# identify 1.35 X and 0.65 X variants.
+# produce a heatmap of the sig results (Suppl. Fig. 2)
+# dot plots of bedgraphs (Suppl. Figs. 3-6)
+# With sig points in colors (red increase, orange marginal increase, blue decrease)
+# Alternating grey and white for chromosomes
+
+# First appending strain to all bedgraph files
+
+#!/bin/bash
+
+FFILES=*bedgraph
+
+for f in $FFILES
+do
+	g=$(echo $f| cut -d'.' -f 1)
+	h=${f/.bedgraph/.bedgraph_new}
+    sed "s/$/	$g/" $f >$h
+done
+
+# Then combine files
+cat *bedgraph_new >all_strains_bedgraph_forR.txt
+>>>>all_strains_bedgraph_forR.txt
+
+# Added the header to strain data 
+Chromosome	Start	Stop	Coverage	Strain
+
+# Use R and also generate a new column which is the midpoint of the interval
+# There are outliers, particularly the ribosomal RNA which we need to exclude to remove the unusual read depth.
+# Exclude values that are 4 times larger than the mean
+# First read in the data and calculate the mean
+data<-read.table("all_strains_bedgraph_forR.txt", header=TRUE)
+data$midpoint <- (data$Start + data$Stop) /2
+
+# Now aggregate data using aggregate function
+agg <- aggregate(data$Coverage, by = list(data$Chromosome, data$Strain), mean)
+names(agg)[1] <- "Chromosome"
+names(agg)[2] <- "Strain"
+names(agg)[3] <- "Coverage"
+
+# Means for strains
+agg2 <- aggregate(. ~ Strain, agg[-1], mean)
+
+# Use the means to test whether the strains have > 4X mean coverage and exclude if so
+for (row in 1:nrow(data)) {
+	cov <- data[row,]$Coverage
+	too_high <- 4 * agg2[agg2$Strain==data[row,]$Strain,]$Coverage
+    if(cov > too_high) {
+    data[row,]$Coverage <- NA
+    }
+}
+# print out the new data
+write.table(data,"all_strains_bedgraph_forR_censured.txt", sep="\t")
+&&&&all_strains_bedgraph_forR_censured.txt
+
+# Re-average data and print
+agg <- aggregate(data$Coverage, by = list(data$Chromosome, data$Strain), mean, na.rm=T)
+names(agg)[1] <- "Chromosome"
+names(agg)[2] <- "Strain"
+names(agg)[3] <- "Coverage"
+write.table(agg, "coverage_by_chromosome.txt", sep="\t")
+@@@@coverage_by_chromosome.txt
+agg2 <- aggregate(. ~ Strain, agg[-1], mean)
+write.table(agg2, "coverage_by_strain.txt", sep="\t")
+@@@@coverage_by_strain.txt
+
+# Make table for heatmap
+agg$standchrom = agg$Coverage / ave(agg$Coverage, agg$Strain)
+
+library("ggplot2")
+
+xlevel_order <- c('cneoH99_Chr01', 'cneoH99_Chr02', 'cneoH99_Chr03', 'cneoH99_Chr04', 'cneoH99_Chr05','cneoH99_Chr06','cneoH99_Chr07','cneoH99_Chr08','cneoH99_Chr09', 'cneoH99_Chr10','cneoH99_Chr11','cneoH99_Chr12','cneoH99_Chr13','cneoH99_Chr14') 
+ylevel_order<-c('CB-100-1', 'CB-100-2', 'CB-100-3', 'CB-100-5', 'CB-100-6', 'CC-100-1', 
+'CC-100-2', 'CC-100-3', 'CC-100-4', 'CC-100-5', 'CC-100-6', 'CN-100-1', 'CN-100-2', 'CN-100-3', 'CN-100-4',
+'CN-100-5', 'CN-100-6', 'CW-100-1', 'CW-100-2', 'CW-100-3', 'CW-100-4', 'CW-100-5', 'CW-100-6', 'CY-100-1',
+'CY-100-2', 'CY-100-3', 'CY-100-4', 'CY-100-5', 'CY-100-6', 'P1W10', 'P2W10', 'P3W10', 'P4W10', 'P5W10', 'P6W10', 'SSD719_vitro', 'SSD719_vivo', 'EM3', 'YSB121')
+ylabs <- length(ylevel_order)
+
+agg$standchrom_breaks <- cut(agg$standchrom,breaks = c(-Inf,0.65,0.75,1.20,1.35,Inf),right = FALSE)
+
+chr.heatmap <- ggplot(data = agg, mapping = aes(x = factor(Chromosome, level = xlevel_order), y = factor(Strain, level = ylevel_order), fill = standchrom_breaks)) +
+  geom_tile(color = "gray") + xlab(label = "Chromosome") + ylab(label = "Strain") + scale_x_discrete(labels=c("cneoH99_Chr01" = "1", "cneoH99_Chr02" = "2", "cneoH99_Chr03" = "3",
+ "cneoH99_Chr04" = "4", "cneoH99_Chr05" = "5", "cneoH99_Chr06" = "6",  "cneoH99_Chr07" = "7", "cneoH99_Chr08" = "8", "cneoH99_Chr09" = "9",
+  "cneoH99_Chr10" = "10", "cneoH99_Chr11" = "11", "cneoH99_Chr12" = "12","cneoH99_Chr13" = "13", "cneoH99_Chr14" = "14")) + 
+  scale_fill_manual(breaks=c("[0.75,1.2)", "[1.2,1.35)",  "[1.35, Inf)"),
+                     values = c("white", "orange", "red")) +
+  theme(axis.title=element_text(size=14),  axis.text.x = element_text(size = 12)) + scale_y_discrete(position = "right") 
+chr.heatmap
+>>>>Suppl. Figure 2.pdf
+
+# The above gives us values for chromosome means above 1.35X and below 0.65X. 
+# Now to generate the dot plots, Suppl Fig 3-6.
+
+# Had to relabel chr2 = chr02 in order to have the chromosomes in the proper order
+# Midpoints annotated
+&&&&all_strains_bedgraph_forR_with_mid.txt
+
+data<-read.table("all_strains_bedgraph_forR_with_mid.txt", header=TRUE)
+# This file has all of the chromosome lengths worked out
+@@@@midpoints.txt
+mids<-read.table("midpoints.txt", header=TRUE)
+
+# layout the plots into a panel
+# Beer & Can in Fig S3
+# NaCl & Wine in Fig S4
+# YPD & Larvae in Fig S5
+# Ancestors in Fig S6
+# Suppress printing of Chromosome except on the bottom
+# Strain label printed in top left
+
+library("gridExtra")
+library("grid")
+
+CB1data<-subset(data, Strain=='CB-100-1')
+CB2data<-subset(data, Strain=='CB-100-2')
+CB3data<-subset(data, Strain=='CB-100-3')
+CB5data<-subset(data, Strain=='CB-100-5')
+CB6data<-subset(data, Strain=='CB-100-6')
+CC1data<-subset(data, Strain=='CC-100-1')
+CC2data<-subset(data, Strain=='CC-100-2')
+CC3data<-subset(data, Strain=='CC-100-3')
+CC4data<-subset(data, Strain=='CC-100-4')
+CC5data<-subset(data, Strain=='CC-100-5')
+CC6data<-subset(data, Strain=='CC-100-6')
+
+CB1plot<-ggplot(CB1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 350) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-1")
+CB2plot<-ggplot(CB2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-2")
+CB3plot<-ggplot(CB3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 125) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-3")
+CB5plot<-ggplot(CB5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-5")
+CB6plot<-ggplot(CB6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-6")
+
+CC1plot<-ggplot(CC1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 300) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-1")
+CC2plot<-ggplot(CC2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-2")
+CC3plot<-ggplot(CC3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-3")
+CC4plot<-ggplot(CC4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-4")
+CC5plot<-ggplot(CC5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","orange", "black","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-5")
+CC6plot<-ggplot(CC6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 100) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-6")
+
+grid.arrange(CB1plot, CB2plot, CB3plot, CB5plot, CB6plot, textGrob("Chromosome", y=0.9, gp = gpar(fontsize =13)), CC1plot, CC2plot, CC3plot, CC4plot, CC5plot, CC6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("Beer                                                                     Canavanine", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome", x=0.72, y=0.5, just ="left", gp = gpar(fontsize =13)))	
+>>>>Suppl. Figure 3.pdf
+
+CN1data<-subset(data, Strain=='CN-100-1')
+CN2data<-subset(data, Strain=='CN-100-2')
+CN3data<-subset(data, Strain=='CN-100-3')
+CN4data<-subset(data, Strain=='CN-100-4')
+CN5data<-subset(data, Strain=='CN-100-5')
+CN6data<-subset(data, Strain=='CN-100-6')
+CW1data<-subset(data, Strain=='CW-100-1')
+CW2data<-subset(data, Strain=='CW-100-2')
+CW3data<-subset(data, Strain=='CW-100-3')
+CW4data<-subset(data, Strain=='CW-100-4')
+CW5data<-subset(data, Strain=='CW-100-5')
+CW6data<-subset(data, Strain=='CW-100-6')
+
+CN1plot<-ggplot(CN1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-1")
+CN2plot<-ggplot(CN2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black"))  + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-2")
+CN3plot<-ggplot(CN3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-3")
+CN4plot<-ggplot(CN4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-4")
+CN5plot<-ggplot(CN5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black")) + ylim(0, 175) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-5")
+CN6plot<-ggplot(CN6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+     scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-6")
+
+CW1plot<-ggplot(CW1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-1")
+CW2plot<-ggplot(CW2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 125) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-2")
+CW3plot<-ggplot(CW3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 125) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-3")
+CW4plot<-ggplot(CW4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-4")
+CW5plot<-ggplot(CW5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-5")
+CW6plot<-ggplot(CW6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-6")
+
+grid.arrange(CN1plot, CN2plot, CN3plot, CN4plot, CN5plot, CN6plot, CW1plot, CW2plot, CW3plot, CW4plot, CW5plot, CW6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("NaCl                                                                           Wine", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome                                                                     Chromosome", x=0.22, y=0.5, just ="left", gp = gpar(fontsize =13)))	
+
+>>>> Suppl. Figure 4.pdf
+
+CY1data<-subset(data, Strain=='CY-100-1')
+CY2data<-subset(data, Strain=='CY-100-2')
+CY3data<-subset(data, Strain=='CY-100-3')
+CY4data<-subset(data, Strain=='CY-100-4')
+CY5data<-subset(data, Strain=='CY-100-5')
+CY6data<-subset(data, Strain=='CY-100-6')
+P1data<-subset(data, Strain=='P1W10')
+P2data<-subset(data, Strain=='P2W10')
+P3data<-subset(data, Strain=='P3W10')
+P4data<-subset(data, Strain=='P4W10')
+P5data<-subset(data, Strain=='P5W10')
+P6data<-subset(data, Strain=='P6W10')
+
+CY1plot<-ggplot(CY1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-1")
+CY2plot<-ggplot(CY2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black"))  + ylim(0, 225) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-2")
+CY3plot<-ggplot(CY3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "orange","grey", "black","grey", "black"))  + ylim(0, 300) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-3")
+CY4plot<-ggplot(CY4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-4")
+CY5plot<-ggplot(CY5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-5")
+CY6plot<-ggplot(CY6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "orange","grey", "black","grey", "black"))  + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-6")
+
+P1plot<-ggplot(P1data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "red","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 350) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P1W10")
+P2plot<-ggplot(P2data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P2W10")
+P3plot<-ggplot(P3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "red","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 350) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P3W10")
+P4plot<-ggplot(P4data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 300) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P4W10")
+P5plot<-ggplot(P5data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+    scale_color_manual(values = c("grey", "black","grey", "red","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 175) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P5W10")
+P6plot<-ggplot(P6data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
+   scale_color_manual(values = c("grey", "black","grey", "black","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 200) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+	panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P6W10")
+
+grid.arrange(CY1plot, CY2plot, CY3plot, CY4plot, CY5plot, CY6plot, P1plot, P2plot, P3plot, P4plot, P5plot, P6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("YPD                                                                           Larvae", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome                                                                     Chromosome", x=0.22, y=0.5, just ="left", gp = gpar(fontsize =13)))	
+
+>>>>Suppl. Figure 5.pdf
+
+invitrodata<-subset(data, Strain=='SSD719_vitro')
+invivodata<-subset(data, Strain=='SSD719_vivo')
+EM3data<-subset(data, Strain=='EM3')
+YSB121data<-subset(data, Strain=='YSB121')
+
+invitroplot<-ggplot(invitrodata, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black","grey", "black")) + ylim(0, 100) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("SSD719 in vitro")
+invivoplot<-ggplot(invivodata, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = c("grey", "black","grey", "black","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black"))  + ylim(0, 250) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("SSD719 in vivo")
+EM3plot<-ggplot(EM3data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("EM3")
+YSB121plot<-ggplot(YSB121data, aes(x=CumMid, y=Coverage)) +   
+    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
+    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
+	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("YSB121")
+
+grid.arrange(invitroplot, invivoplot, EM3plot, YSB121plot,layout_matrix = cbind(c(1, 2, 3, 4)), top = textGrob("Ancestors", x=0.475, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosomes", x=0.45, y=0.5, just ="left", gp = gpar(fontsize =13)))
+
+>>>>Suppl. Figure 6.pdf
+
+# Next identify structural variants and deletions using smoove
+
+docker run -it -v /Users/tyjames:/Users/tyjames brentp/smoove smoove call --outdir smoove_output --name Crypto_Exp_SV --fasta Cryptococcus_neoformans_H99.unmasked.fasta -p 1 --genotype Crypto_LOH_project/bam/*.bam 
+@@@@Crypto_Exp_SV-smoove.genotyped.vcf
+
+# There are 1342 lines of SVs
+# This is a pretty noisy file with low quality SVs and ones that are also present as differences between neoformans and deneoformans
+# First filter by SNV not present in any of haploid or diploid parents and evolved strain genotypes that are low quality < 200
+@@@@filter_smoove_vcf_v4.pl
+
+perl filter_smoove_vcf.pl Crypto_Exp_SV-smoove.genotyped.vcf Crypto_Exp_SV-smoove.genotyped.filtered.vcf
+# After filtering there are 22 lines of SVs
+@@@@Crypto_Exp_SV-smoove.genotyped.filtered_v4.vcf
+
+# Found there were 6 deletions total, 2 detected by smoove and 4 by eye in the coverage plots
+# Found 2 LOH were associated with deletions
+
+##############################
+### MUTATION DET & EFFECTS ###
+##############################
+
+# Determine how many mutations occurred and what their effects are on proteins
+# We are ignoring indels
+# Use the file crypto.LOH.snps.only.unfiltered.vcf 
+# We will use the data to due a lower stringency filtration
+# Original filtration was: --filter-expression "BaseQRankSum < -5.0 || BaseQRankSum > 5.0 || DP > 5000.0 || MQ < 59.0 || QD < 5.0 || FS > 15.0 || ReadPosRankSum < -5.0 || ReadPosRankSum > 5.0 || QUAL < 1000 || SOR > 4.0" 
+# Minimal filtration
+gatk VariantFiltration \
+   -R Cryptococcus_neoformans_H99.unmasked.fasta  \
+   -V vcf/crypto.LOH.snps.only.unfiltered.vcf  \
+   -O vcf/crypto.LOH.snps.only.min_qualfiltered.vcf  \
+   --filter-expression "DP > 5000.0 || MQ < 59.0 || QD < 5.0" \
+   --filter-name "qual_filtered_2"
+>>>>crypto.LOH.snps.only.min_qualfiltered.vcf
+
+# Then need to remove variants
+gatk SelectVariants \
+   -R Cryptococcus_neoformans_H99.unmasked.fasta \
+   -V vcf/crypto.LOH.snps.only.min_qualfiltered.vcf \
+   -O vcf/crypto.LOH.snps.only.min_qualfiltered.pruned.vcf \
+   --exclude-filtered \
+&&&&crypto.LOH.snps.only.min_qualfiltered.pruned.vcf
+
+# 977,743 SNPs in the min_qualfiltered set
+
+# Now filter out SNPs based on them being novel and high quality. Characteristics we need
+# 1. All ancestors need to be called and 99 GQ and 0/0 and depth at least 18X
+# 2. Any mutation needs to be GQ 99, 0/1, or 1/1, and depth at least 18X
+# 3. No missing data for any strain. i.e., No ./. 
+
+# Perl script
+@@@@filter_vcf_for_mutations_crypto.pl
+
+perl filter_vcf_for_mutations_crypto.pl crypto.LOH.snps.only.min_qualfiltered.pruned.vcf crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.vcf
+>>>>crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.vcf
+
+# Next run snpEff
+# Had to remove cneoH99_ from the Chromosome name
+>>>>crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.for_snpEff.vcf
+# Here is the one with the upstream and downstream
+# -ud 0 suppresses upstream downstream reporting which is really annoying
+java -Xmx4g -jar /Applications/snpEff_latest_core/snpEff/snpEff.jar Cryptococcus_neoformans_var_grubii_h99 -ud 0 crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.for_snpEff.vcf > crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.snpeff_annotated.vcf
+@@@@crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.snpeff_annotated.vcf
+@@@@snpEff_genes_no_ud.txt
+@@@@snpEff_summary_no_ud.html
+# In order to view in IGV, need to put back the cneoH99_
+
+# Now convert this to simple, leaving the snpEff data in place
+perl convert_vcf_to_simple_crypto_for_snpEff.pl crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.snpeff_annotated.vcf crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.snpeff_annotated.simple.txt
+>>>>crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.snpeff_annotated.simple.txt
+# Summarized in Excel version of this
+>>>>crypto.LOH.snps.only.min_qualfiltered.pruned.new_mutations.snpeff_annotated.xlsx
+
+# Analyze genes with mutations for GO term enrichment
+# Using R package clusterProfiler
+
+# Input is a list of EntrezIDs
+# Make perl script to get EntrezID from a list of gene names output from snpEff
+perl edirect_cna.pl
+@@@@edirect_cna.pl
+@@@@entrez_ids.txt
+
+# In R
+library(clusterProfiler)
+crneofdata <-scan("entrez_ids.txt")
+ego <- enrichGO(gene          = crneofdata,
+                OrgDb         = Cneof,
+                ont           = "ALL",
+                pAdjustMethod = "BH",
+                pvalueCutoff  = 0.01,
+                qvalueCutoff  = 0.05,
+        		readable      = TRUE)
+
+# No significant result
+
+##############################
+#### TEST FOR PARALLELISM ####
+##############################
+
+# Developed a cleaned file that has any erroneous LOH events removed
+# Summed homozygotes of each type in excel and export as text
+&&&&crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns_v2.txt
+# Created simple perl script to identify LOH occurring in 3 or more individuals, ignore chr 2, 4, 9. 12
+
+perl find_parallel_LOH.pl crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns_v2.txt parallel_LOH_crypto.txt
+@@@@parallel_LOH_crypto.txt
+
+# Now test for having one allele favored over another via Fisher's exact test.
+# This is only run for Chr. 2, 4, 9, 12
+
+# Chr 2
+LOHs <- matrix(c(0, 5, 30, 15, 5, 15), 3, 2, dimnames = list(c("A", "Het", "D"),  c("Observed", "Expected")))
+#    Observed Expected
+#A          0       15
+#Het        5        5
+#D         30       15
+
+#fisher.test(LOHs)
+
+#	Fisher's Exact Test for Count Data
+
+#data:  LOHs
+#p-value = 8.203e-06
+#alternative hypothesis: two.sided
+
+# Chr 4
+# Note the in vivo are removed as they showed LOH in the ancestor
+LOHs <- matrix(c(0, 23, 6, 3, 23, 3), 3, 2, dimnames = list(c("A", "Het", "D"),  c("Observed", "Expected")))
+#    Observed Expected
+#A          0        3
+#Het       23       23
+#D          6        3
+
+#fisher.test(LOHs)
+
+#	Fisher's Exact Test for Count Data
+
+#data:  LOHs
+#p-value = 0.1717
+#alternative hypothesis: two.sided
+
+# Chr 9
+LOHs <- matrix(c(11, 22, 2, 6.5, 22, 6.5), 3, 2, dimnames = list(c("A", "Het", "D"),  c("Observed", "Expected")))
+#    Observed Expected
+#A         11      6.5
+#Het       22     22.0
+#D          2      6.5
+
+#fisher.test(LOHs)
+
+#	Fisher's Exact Test for Count Data
+
+#data:  LOHs
+#p-value = 0.1997
+#alternative hypothesis: two.sided
+
+# Chr 12
+LOHs <- matrix(c(0, 31, 4, 2, 31, 2), 3, 2, dimnames = list(c("A", "Het", "D"),  c("Observed", "Expected")))
+#    Observed Expected
+#A          0        2
+#Het       31       31
+#D          4        2
+
+#fisher.test(LOHs)
+
+#	Fisher's Exact Test for Count Data
+
+#data:  LOHs
+#p-value = 0.4321
+#alternative hypothesis: two.sided
+
+# Test for bias allele homozygosity across parents
+# Start with  file crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_NArecode.xlsx
+&&&&crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_NArecode.xlsx
+# calculated proportion of homozygous regions that are A 
+# with and without Chr 2 and just considering proportions of number of events
+@@@@percentage_A_LOH.txt
+
+# Test in R using T test with null hypothesis of 0.5
+data<-read.table("percentage_A_LOH.txt", header=TRUE)
+t.test(data$all, mu=0.5)
+
+#	One Sample t-test
+
+#data:  data$all
+#t = -4.5288, df = 34, p-value = 6.951e-05
+#alternative hypothesis: true mean is not equal to 0.5
+#95 percent confidence interval:
+# 0.1151859 0.3535723
+#sample estimates:
+#mean of x 
+#0.2343791 
+
+# Remove chromosome 2
+t.test(data$no_2, mu=0.5)
+
+#	One Sample t-test
+
+#data:  data$no_2
+#t = 1.8799, df = 29, p-value = 0.0702
+#alternative hypothesis: true mean is not equal to 0.5
+#95 percent confidence interval:
+# 0.4877520 0.7908652
+#sample estimates:
+#mean of x 
+#0.6393086 
+
+# To do t-test on events rather than bp
+# Use number of each type rather than proportions
+@@@@events.txt
+
+events<-read.table("events.txt", header=TRUE)
+t.test(events$A, events$D)
+#	Welch Two Sample t-test
+
+#data:  events$A and events$D
+#t = -0.08976, df = 67.685, p-value = 0.9287
+#alternative hypothesis: true difference in means is not equal to 0
+#95 percent confidence interval:
+# -0.6638004  0.6066576
+#sample estimates:
+#mean of x mean of y 
+# 1.600000  1.628571 
+
+##############################
+# RELATIONSHIP OF LOH TO HET #
+##############################
+
+# Next we wanted to check whether LOH breakpoints happened in regions of the genome that were more homozygous relative to others.
+# Calculate heterozygosity in windows of varying size away from the breakpoint.
+# Simulate random breakpoints to create null distribution
+# Use possible breakpoints based off of observed SNP locations
+# Also tried any random location in the genome, but it didn't change the results
+# Working with only the left breakpoint when analyzing gene conversions
+
+# 1. First create a file of just absolute location and SNP number:
+@@@@snp_locations_AD_new.txt
+2. Record the SNP location of each breakpoint using crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns_v2.txt
+@@@@breakpoint_locations_leftonly_new_v2.txt
+# There are 47 breakpoints
+# Use script
+@@@@breakpoint_het_v2_new.pl 
+# Run the script with differing window sizes (10 bp, 30 bp, 50 bp, 100 bp, 500 bp, 1 kb, 10 kb, 100 kb, but always with 1000 simulations.
+perl breakpoint_het_v2_new.pl snp_locations_AD_new.txt breakpoint_locations_leftonly_new_v2.txt
+# Rerun with all of the window sizes 10, 30, 100, 500, 1000, 10000, 100000 
+>>>>random_hets_10bp_left_only_cleaned.txt
+>>>>random_hets_30bp_left_only_cleaned.txt
+>>>>random_hets_100bp_left_only_cleaned.txt
+>>>>random_hets_500bp_left_only_cleaned.txt
+>>>>random_hets_1000bp_left_only_cleaned.txt
+>>>>random_hets_10000bp_left_only_cleaned.txt
+>>>>random_hets_100000bp_left_only_cleaned.txt
+# Output summarized in file "breakpoint_het_analysis_output.txt"
+@@@@breakpoint_het_analysis_output.txt 
+
+# Test for correlation between number of crossovers per chromosome and observed heterozygosity
+# Using R
+# Input file has observed heterozygosity, which is density of SNPs per chromosome in crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns_v2.txt "snps_breaks_corr_new_v2.txt"
+@@@@snps_breaks_corr_new_v2.txt
+# Num_breaks is the number of crossovers for the chromosome
+# SNP_rate is the observed heterozygosity between parents
+data<-read.table("snps_breaks_corr_new_v2.txt", header=TRUE)
+cor.test(data$SNP_rate, data$Num_breaks, method=c("pearson"))
+
+#	Pearson's product-moment correlation
+
+#data:  data$SNP_rate and data$Num_breaks
+#t = 0.28934, df = 12, p-value = 0.7773
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# -0.4680137  0.5878529
+#sample estimates:
+#       cor 
+#0.08323439
+
+# Plot heterozygosity using 10 kb windows along with crossover and mutation locations
+# For centromere locations I used the gene next to the centromere as indicated in Janbon et al. 2014
+# Use R package chromPlot and input file "crypto_chroms.txt"
+@@@@crypto_chroms.txt
+# Need to estimate heterozygosity using script "heterozygosity_calc.pl"
+@@@@heterozygosity_calc.pl
+# input file is based off of crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns_v2.txt
+# input SNP locations from file snp_locations_AD.txt
+
+perl heterozygosity_calc.pl
+@@@@heterozygosity_10kb_for_chromplot_new.txt
+
+# Information on crossover location and SNPs is saved in file: "crypto_LOH_SNP_data_for_chromplot_new.txt"
+@@@@crypto_LOH_SNP_data_for_chromplot_new.txt
+library("chromPlot")
+crypto<-read.table("crypto_chroms.txt", header=TRUE)
+chromPlot(gaps=crypto)
+heteroz<-read.table("heterozygosity_10kb_for_chromplot_new.txt", header=TRUE)
+LOH<-read.table("crypto_LOH_SNP_data_for_chromplot_new.txt", header=TRUE)
+postscript("Figure 5.eps", width=14, height=7, horizontal=FALSE)
+chromPlot(gaps=crypto, stat=heteroz, statCol="Het", statName="Heterozygosity", statTyp="p", segment=LOH, noHist=TRUE, figCols=7, scex=0.7, spty=20, statSumm="none", colSegments=c("green","red"), colSegments2="red")
+dev.off()
+>>>>Figure 5.eps
+# modified in Illustrator to make 
+>>>>Figure 5.pdf
+
+# Test of whether mutations are statistically independent of cross over locations.
+# Based off locations in crypto.LOH.snps.only.qualfiltered.pruned.simpleformat.verified.flattened_no_Ns_v2.txt
+# Input files are:
+@@@@snp_locations_AD_new.txt
+@@@@LOH_breakpoint_locations_new.txt
+
+# The scripts and input files
+@@@@LOH_mutation_corr.pl
+perl LOH_mutation_corr.pl snp_locations_AD.txt.txt LOH_breakpoint_locations_new.txt
+# Observed distance from SNP to nearest LOH breakpoint: 4504841.08333333
+# Mean distance from random SNP to nearest LOH breakpoint: 4496549.07140477
+# The average observed is compared to the distribution of random distances to generate a P value
+# P = 0.508
