@@ -57,21 +57,17 @@ for ($a=1;$a<=$numchroms;$a++)
 	$end = $windowsize;
 	$mid = $halfwindowsize;
 	$begin = 0;
-	print "\nmid=$mid chrlength($a)=$chrlength{$a}";
 	until ($mid > $chrlength{$a})
 	{	
 		$sum=0;
-#		print "\n got in";
 		for ($b=0;$b<$maxsnps;$b++)
 		{
 			if (($snps[$b][0] == $a) && ($snps[$b][1] <= $end) && ($snps[$b][1] > $begin))
 			{
 				$sum++;
-#				print "inside summing ";
 			}
 		}
 		$het = $sum/$windowsize;
-		print "$a\t$mid\t$het\n";
 		print OUTPUTFILE "$a\t$mid\t$het\n";		
 		$end += $windowsize;
 		$mid += $windowsize;
