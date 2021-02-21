@@ -5,4 +5,4 @@ Unless specified, code for Figures is written in R.
 
 Raw sequence data is stored in NCBI SRA archive under BioProject: PRJNA700784 under the accession numbers: SRX10055646-SRX10055684.
 
-The primary pipeline can be found in the file: 
+The primary pipeline can be found in the file: Cryptococcus_LOH_paper_analysis_pipeline.txt
