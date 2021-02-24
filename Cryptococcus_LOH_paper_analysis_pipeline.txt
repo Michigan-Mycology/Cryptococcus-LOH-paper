@@ -155,7 +155,7 @@ perl parse_vcf.pl cryptoAD.ref.vcf cryptoAD.ref.passed.vcf
 
 module load gatk
 gatk --java-options "-Xmx4g" IndexFeatureFile -F cryptoAD.ref.passed.vcf
-&&&&cryptoAD.ref.passed.vcf.idx
+>>>>cryptoAD.ref.passed.vcf.idx
 
 # This code uses the high quality SNPs between JEC21 & H99 to mask the bam files of SNPs
 # To generate base recalibration using bona fide SNPs
@@ -241,12 +241,12 @@ gatk GenotypeGVCFs -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoforma
 
 # Total variants
 # 1,466,493 SNPs and indels
-&&&&crypto.LOH.snps.unfiltered.vcf
+>>>>crypto.LOH.snps.unfiltered.vcf
 
 # Then extract only the SNPs
 # 1,265,025 SNPs
 gatk SelectVariants -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta -V crypto.LOH.snps.unfiltered.vcf -select-type SNP -O crypto.LOH.snps.only.unfiltered.vcf  
-&&&&crypto.LOH.snps.only.unfiltered.vcf
+>>>>crypto.LOH.snps.only.unfiltered.vcf
 
 ##############################
 ##### VARIANT FILTRATION #####
@@ -977,7 +977,7 @@ gatk SelectVariants \
    -V vcf/crypto.LOH.snps.only.min_qualfiltered.vcf \
    -O vcf/crypto.LOH.snps.only.min_qualfiltered.pruned.vcf \
    --exclude-filtered \
-&&&&crypto.LOH.snps.only.min_qualfiltered.pruned.vcf
+>>>>crypto.LOH.snps.only.min_qualfiltered.pruned.vcf
 
 # 977,743 SNPs in the min_qualfiltered set
 
