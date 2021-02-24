@@ -577,7 +577,7 @@ for (row in 1:nrow(data)) {
 }
 # print out the new data
 write.table(data,"all_strains_bedgraph_forR_censured.txt", sep="\t")
-&&&&all_strains_bedgraph_forR_censured.txt
+>>>>all_strains_bedgraph_forR_censured.txt
 
 # Re-average data and print
 agg <- aggregate(data$Coverage, by = list(data$Chromosome, data$Strain), mean, na.rm=T)
