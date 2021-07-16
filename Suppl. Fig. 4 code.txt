@@ -1,0 +1,325 @@
+library(ggplot2)
+library(gridExtra)
+data<-read.table("CY-100-1.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
+
+A1plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A1plot<- A1plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A1plot<-A1plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+# D color CEC4AF
+
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
+
+D1plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(), 
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CY-100-1 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D1plot<- D1plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D1plot<-D1plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+data<-read.table("CY-100-2.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
+
+A2plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A2plot<- A2plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A2plot<-A2plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
+
+D2plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),  
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CY-100-2 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D2plot<- D2plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D2plot<-D2plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+data<-read.table("CY-100-3.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
+
+A3plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A3plot<- A3plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A3plot<-A3plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
+
+D3plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() + xlab ("Genome position (Mb)") +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),  
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CY-100-3 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D3plot<- D3plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D3plot<-D3plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+data<-read.table("CY-100-4.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
+
+A4plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A4plot<- A4plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A4plot<-A4plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
+
+D4plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CY-100-4 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D4plot<- D4plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D4plot<-D4plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+data<-read.table("CY-100-5.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
+
+A5plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A5plot<- A5plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A5plot<-A5plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
+
+D5plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),  axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CY-100-5 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D5plot<- D5plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D5plot<-D5plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+data<-read.table("CY-100-6.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
+
+A6plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A6plot<- A6plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A6plot<-A6plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
+
+D6plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),  axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CY-100-6 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D6plot<- D6plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D6plot<-D6plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+plots<-list(A1plot, A2plot,A3plot, A4plot, A5plot, A6plot, D1plot, D2plot,  D3plot, D4plot, D5plot, D6plot)
+pdf("crypto_coverage_YPD_AD_mapping.pdf", height = 8, width = 10)
+grid.arrange(grobs=plots, layout_matrix = rbind(c(1,2),c(7,8),c(3,4),c(9,10),c(5,6),c(11,12)))
+dev.off()
