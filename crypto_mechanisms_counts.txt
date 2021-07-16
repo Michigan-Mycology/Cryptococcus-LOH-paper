@@ -1,6 +1,6 @@
 Type	Count
 1	17
-4	23
+4	22
 6	1
-Deletion	6
+Deletion	7
 0Aneuploidy	53
