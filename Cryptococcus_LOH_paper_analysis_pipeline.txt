@@ -241,12 +241,12 @@ gatk GenotypeGVCFs -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoforma
 
 # Total variants
 # 1,466,493 SNPs and indels
->>>>crypto.LOH.snps.unfiltered.vcf
+&&&&crypto.LOH.snps.unfiltered.vcf
 
 # Then extract only the SNPs
 # 1,265,025 SNPs
 gatk SelectVariants -R /scratch/tyjames_flux/tyjames/crypto/Cryptococcus_neoformans_H99.unmasked.fasta -V crypto.LOH.snps.unfiltered.vcf -select-type SNP -O crypto.LOH.snps.only.unfiltered.vcf  
->>>>crypto.LOH.snps.only.unfiltered.vcf
+&&&&crypto.LOH.snps.only.unfiltered.vcf
 
 ##############################
 ##### VARIANT FILTRATION #####
@@ -498,443 +498,402 @@ p <- ggplot(data, aes(x=factor(Type), y=Count)) +
 # Became Figure 4B
 
 ##############################
-###### CNV/SV DETECTION ######
+# ESTIMATE DEPTH OF COVERAGE #
 ##############################
 
 # Estimate aneuploidy by looking at mean coverage of reads across chromosomes
-# Calculate mean depth for SNPs in windows of size 1 kb (non overlapping).
-# Whole chromosome aneuploidies were called if average coverage of a chromosome differs >35% from other chromosomes in the same line (likelihood P , 0.001, x2-test)
+# Calculate mean depth for SNPs in windows of size 5 kb (non overlapping).
 
-# Use bedtools which will take all reads 
+# Use bwa, samtools bedtools
+# This uses a combined AD hybrid reference genome from Priest et al. 2021 received from Marco Coelho
+# Chromosomes in reference were renamed to be in alphabetical order combine the reference genomes of H99 together with JEC21
+cat Cryneo_H99_sppIDer.fasta Cryden_JEC21_sppIDer.fasta > Crypto_AD_combined_genome.fasta
+@@@@Crypto_AD_combined_genome.fasta
+
+# index reads in bwa:
+
+module load samtools
+module load bwa
+bwa index -p Crypto_comb Crypto_AD_combined_genome.fasta
+
+# Now align trimmed reads to hybrid reference
+
+FFILES=/scratch/tyjames_root/tyjames/tyjames/Cryptococcus/trimmed_paired_cat/*R1.trimmed.paired.fastq
+for f in $FFILES
+do
+  	g=${f/R1/R2}
+    h=${f/_R1.trimmed.paired.fastq/.sam}
+	bwa mem -t 8 -M Crypto_comb $f $g > $h
+done
+
+# Next we will remove reads with low mapping using samtools, convert to bam files, and then to bed files which are used for estimating coverage in windows
+
 module load bedtools2/2.29.2
-bedtools makewindows -g Cryptococcus_neoformans_H99.unmasked.fasta.fai -w 1000 > H99_windows_1kb.bed
-# Look through all files to get bam to bed and then get the mean coverage
-FFILES=/scratch/tyjames_root/tyjames/tyjames/Cryptococcus/base_recalib/*recalib.*.bam
+module load picard-tools
+module load samtools
+samtools faidx Crypto_AD_combined_genome.fasta
+bedtools makewindows -g Crypto_AD_combined_genome.fasta.fai -w 5000 > Crypto_windows_AD_5kb.bed
+
+FFILES=/scratch/tyjames_root/tyjames/tyjames/Cryptococcus/sam/*.sam
 
 for f in $FFILES
 do
-  	g=${f/.bam/.bed}
-    h=${f/.bam/.MeanCoverageBED.bedgraph}
-    bedtools bamtobed -i $f > $g
-    bedtools coverage -a H99_windows_1kb.bed -b $g -mean > $h
+  	e=${f/.sam/.qf.sam}
+  	g=${f/.sam/.qf.bam}
+  	h=${f/.sam/.sorted.bam}
+  	i=${f/.sam/.bed}
+    j=${f/.sam/.MeanCoverageBED.bedgraph}
+    samtools view -q 3 -hbS $f >$e
+    samtools view -hbS $e >$g
+    samtools sort $g -o $h
+    bedtools bamtobed -i $h > $i
+    bedtools coverage -a /scratch/tyjames_root/tyjames/tyjames/Cryptococcus/Crypto_windows_AD_5kb.bed -b $i -mean > $j
 done
 
-# The following is used to generate Suppl. Figures 2-6
-# loop through bedgraph files and append strain name as last column
-# cat all the bedgraphs
-# open in R and use aggregate to calculate strain and chromosome means
-# Use R to generate a table of strain by chromosome means
-# And a vector of averages across chromosomes.
-# identify 1.35 X and 0.65 X variants.
-# produce a heatmap of the sig results (Suppl. Fig. 2)
-# dot plots of bedgraphs (Suppl. Figs. 3-6)
-# With sig points in colors (red increase, orange marginal increase, blue decrease)
-# Alternating grey and white for chromosomes
+@@@@CB-100-3.MeanCoverageBED_w_cum.bedgraph
+@@@@CB-100-2.MeanCoverageBED_w_cum.bedgraph
+@@@@CB-100-1.MeanCoverageBED_w_cum.bedgraph
+@@@@YSB121.MeanCoverageBED_w_cum.bedgraph
+@@@@SSD719-vivo.MeanCoverageBED_w_cum.bedgraph
+@@@@SSD719-vitro.MeanCoverageBED_w_cum.bedgraph
+@@@@P6W10.MeanCoverageBED_w_cum.bedgraph
+@@@@P5W10.MeanCoverageBED_w_cum.bedgraph
+@@@@P4W10.MeanCoverageBED_w_cum.bedgraph
+@@@@P3W10.MeanCoverageBED_w_cum.bedgraph
+@@@@P2W10.MeanCoverageBED_w_cum.bedgraph
+@@@@P1W10.MeanCoverageBED_w_cum.bedgraph
+@@@@EM3.MeanCoverageBED_w_cum.bedgraph
+@@@@CY-100-6.MeanCoverageBED_w_cum.bedgraph
+@@@@CY-100-5.MeanCoverageBED_w_cum.bedgraph
+@@@@CY-100-4.MeanCoverageBED_w_cum.bedgraph
+@@@@CY-100-3.MeanCoverageBED_w_cum.bedgraph
+@@@@CY-100-2.MeanCoverageBED_w_cum.bedgraph
+@@@@CY-100-1.MeanCoverageBED_w_cum.bedgraph
+@@@@CW-100-6.MeanCoverageBED_w_cum.bedgraph
+@@@@CW-100-5.MeanCoverageBED_w_cum.bedgraph
+@@@@CW-100-4.MeanCoverageBED_w_cum.bedgraph
+@@@@CW-100-3.MeanCoverageBED_w_cum.bedgraph
+@@@@CW-100-2.MeanCoverageBED_w_cum.bedgraph
+@@@@CW-100-1.MeanCoverageBED_w_cum.bedgraph
+@@@@CN-100-6.MeanCoverageBED_w_cum.bedgraph
+@@@@CN-100-5.MeanCoverageBED_w_cum.bedgraph
+@@@@CN-100-4.MeanCoverageBED_w_cum.bedgraph
+@@@@CN-100-3.MeanCoverageBED_w_cum.bedgraph
+@@@@CN-100-2.MeanCoverageBED_w_cum.bedgraph
+@@@@CN-100-1.MeanCoverageBED_w_cum.bedgraph
+@@@@CC-100-6.MeanCoverageBED_w_cum.bedgraph
+@@@@CC-100-5.MeanCoverageBED_w_cum.bedgraph
+@@@@CC-100-4.MeanCoverageBED_w_cum.bedgraph
+@@@@CC-100-3.MeanCoverageBED_w_cum.bedgraph
+@@@@CC-100-2.MeanCoverageBED_w_cum.bedgraph
+@@@@CC-100-1.MeanCoverageBED_w_cum.bedgraph
+@@@@CB-100-6.MeanCoverageBED_w_cum.bedgraph
+@@@@CB-100-5.MeanCoverageBED_w_cum.bedgraph
 
-# First appending strain to all bedgraph files
+##############################
+### PLOT DEPTH OF COVERAGE ###
+##############################
 
+# Add cumulative length to each bedgraph
 #!/bin/bash
 
-FFILES=*bedgraph
+FFILES=*.bedgraph
 
 for f in $FFILES
 do
-	g=$(echo $f| cut -d'.' -f 1)
-	h=${f/.bedgraph/.bedgraph_new}
-    sed "s/$/	$g/" $f >$h
+	g=${f/.bedgraph/_w_cum.bedgraph}
+	perl ../add_cumulative_for_bedgraphs_v2.pl $f $g
 done
 
-# Then combine files
-cat *bedgraph_new >all_strains_bedgraph_forR.txt
->>>>all_strains_bedgraph_forR.txt
+@@@@add_cumulative_for_bedgraphs_v2.pl
 
-# Added the header to strain data 
-Chromosome	Start	Stop	Coverage	Strain
+# Then plot data using ggplot2 in R. 
+# This example is for the CB strains evolved in beer, and the other figures are made in a similar way.
+# Figures were assembled in Illustrator using schematics provided by Marco Coehlo
 
-# Use R and also generate a new column which is the midpoint of the interval
-# There are outliers, particularly the ribosomal RNA which we need to exclude to remove the unusual read depth.
-# Exclude values that are 4 times larger than the mean
-# First read in the data and calculate the mean
-data<-read.table("all_strains_bedgraph_forR.txt", header=TRUE)
-data$midpoint <- (data$Start + data$Stop) /2
+library(ggplot2)
+library(gridExtra)
+data<-read.table("CB-100-1.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
 
-# Now aggregate data using aggregate function
-agg <- aggregate(data$Coverage, by = list(data$Chromosome, data$Strain), mean)
-names(agg)[1] <- "Chromosome"
-names(agg)[2] <- "Strain"
-names(agg)[3] <- "Coverage"
+# A color 8E8579
 
-# Means for strains
-agg2 <- aggregate(. ~ Strain, agg[-1], mean)
+A1plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A1plot<- A1plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A1plot<-A1plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-# Use the means to test whether the strains have > 4X mean coverage and exclude if so
-for (row in 1:nrow(data)) {
-	cov <- data[row,]$Coverage
-	too_high <- 4 * agg2[agg2$Strain==data[row,]$Strain,]$Coverage
-    if(cov > too_high) {
-    data[row,]$Coverage <- NA
-    }
-}
-# print out the new data
-write.table(data,"all_strains_bedgraph_forR_censured.txt", sep="\t")
->>>>all_strains_bedgraph_forR_censured.txt
+# D color CEC4AF
 
-# Re-average data and print
-agg <- aggregate(data$Coverage, by = list(data$Chromosome, data$Strain), mean, na.rm=T)
-names(agg)[1] <- "Chromosome"
-names(agg)[2] <- "Strain"
-names(agg)[3] <- "Coverage"
-write.table(agg, "coverage_by_chromosome.txt", sep="\t")
-@@@@coverage_by_chromosome.txt
-agg2 <- aggregate(. ~ Strain, agg[-1], mean)
-write.table(agg2, "coverage_by_strain.txt", sep="\t")
-@@@@coverage_by_strain.txt
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
 
-# Make table for heatmap
-agg$standchrom = agg$Coverage / ave(agg$Coverage, agg$Strain)
+D1plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(), 
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CB-100-1 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D1plot<- D1plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D1plot<-D1plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-library("ggplot2")
+# Generate additional A & D plots for each strain in the Beer series.
 
-xlevel_order <- c('cneoH99_Chr01', 'cneoH99_Chr02', 'cneoH99_Chr03', 'cneoH99_Chr04', 'cneoH99_Chr05','cneoH99_Chr06','cneoH99_Chr07','cneoH99_Chr08','cneoH99_Chr09', 'cneoH99_Chr10','cneoH99_Chr11','cneoH99_Chr12','cneoH99_Chr13','cneoH99_Chr14') 
-ylevel_order<-c('CB-100-1', 'CB-100-2', 'CB-100-3', 'CB-100-5', 'CB-100-6', 'CC-100-1', 
-'CC-100-2', 'CC-100-3', 'CC-100-4', 'CC-100-5', 'CC-100-6', 'CN-100-1', 'CN-100-2', 'CN-100-3', 'CN-100-4',
-'CN-100-5', 'CN-100-6', 'CW-100-1', 'CW-100-2', 'CW-100-3', 'CW-100-4', 'CW-100-5', 'CW-100-6', 'CY-100-1',
-'CY-100-2', 'CY-100-3', 'CY-100-4', 'CY-100-5', 'CY-100-6', 'P1W10', 'P2W10', 'P3W10', 'P4W10', 'P5W10', 'P6W10', 'SSD719_vitro', 'SSD719_vivo', 'EM3', 'YSB121')
-ylabs <- length(ylevel_order)
+data<-read.table("CB-100-2.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
 
-agg$standchrom_breaks <- cut(agg$standchrom,breaks = c(-Inf,0.65,0.75,1.20,1.35,Inf),right = FALSE)
+A2plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A2plot<- A2plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A2plot<-A2plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-chr.heatmap <- ggplot(data = agg, mapping = aes(x = factor(Chromosome, level = xlevel_order), y = factor(Strain, level = ylevel_order), fill = standchrom_breaks)) +
-  geom_tile(color = "gray") + xlab(label = "Chromosome") + ylab(label = "Strain") + scale_x_discrete(labels=c("cneoH99_Chr01" = "1", "cneoH99_Chr02" = "2", "cneoH99_Chr03" = "3",
- "cneoH99_Chr04" = "4", "cneoH99_Chr05" = "5", "cneoH99_Chr06" = "6",  "cneoH99_Chr07" = "7", "cneoH99_Chr08" = "8", "cneoH99_Chr09" = "9",
-  "cneoH99_Chr10" = "10", "cneoH99_Chr11" = "11", "cneoH99_Chr12" = "12","cneoH99_Chr13" = "13", "cneoH99_Chr14" = "14")) + 
-  scale_fill_manual(breaks=c("[0.75,1.2)", "[1.2,1.35)",  "[1.35, Inf)"),
-                     values = c("white", "orange", "red")) +
-  theme(axis.title=element_text(size=14),  axis.text.x = element_text(size = 12)) + scale_y_discrete(position = "right") 
-chr.heatmap
->>>>Suppl. Figure 2.pdf
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
 
-# The above gives us values for chromosome means above 1.35X and below 0.65X. 
-# Now to generate the dot plots, Suppl Fig 3-6.
+D2plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),  
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CB-100-2 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D2plot<- D2plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D2plot<-D2plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-# Had to relabel chr2 = chr02 in order to have the chromosomes in the proper order
-# Midpoints annotated
-&&&&all_strains_bedgraph_forR_with_mid.txt
+data<-read.table("CB-100-3.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
 
-data<-read.table("all_strains_bedgraph_forR_with_mid.txt", header=TRUE)
-# This file has all of the chromosome lengths worked out
-@@@@midpoints.txt
-mids<-read.table("midpoints.txt", header=TRUE)
+A3plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A3plot<- A3plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A3plot<-A3plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-# layout the plots into a panel
-# Beer & Can in Fig S3
-# NaCl & Wine in Fig S4
-# YPD & Larvae in Fig S5
-# Ancestors in Fig S6
-# Suppress printing of Chromosome except on the bottom
-# Strain label printed in top left
 
-library("gridExtra")
-library("grid")
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
 
-CB1data<-subset(data, Strain=='CB-100-1')
-CB2data<-subset(data, Strain=='CB-100-2')
-CB3data<-subset(data, Strain=='CB-100-3')
-CB5data<-subset(data, Strain=='CB-100-5')
-CB6data<-subset(data, Strain=='CB-100-6')
-CC1data<-subset(data, Strain=='CC-100-1')
-CC2data<-subset(data, Strain=='CC-100-2')
-CC3data<-subset(data, Strain=='CC-100-3')
-CC4data<-subset(data, Strain=='CC-100-4')
-CC5data<-subset(data, Strain=='CC-100-5')
-CC6data<-subset(data, Strain=='CC-100-6')
+D3plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() + xlab ("Genome position (Mb)") +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),  
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CB-100-3 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D3plot<- D3plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D3plot<-D3plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-CB1plot<-ggplot(CB1data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 350) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-1")
-CB2plot<-ggplot(CB2data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-2")
-CB3plot<-ggplot(CB3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 125) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-3")
-CB5plot<-ggplot(CB5data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-5")
-CB6plot<-ggplot(CB6data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black")) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CB-100-6")
+data<-read.table("CB-100-5.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
 
-CC1plot<-ggplot(CC1data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 300) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+A4plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
     theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-1")
-CC2plot<-ggplot(CC2data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black")) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-2")
-CC3plot<-ggplot(CC3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-3")
-CC4plot<-ggplot(CC4data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-4")
-CC5plot<-ggplot(CC5data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","orange", "black","grey", "black","grey", "black")) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-5")
-CC6plot<-ggplot(CC6data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 100) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CC-100-6")
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A4plot<- A4plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A4plot<-A4plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-grid.arrange(CB1plot, CB2plot, CB3plot, CB5plot, CB6plot, textGrob("Chromosome", y=0.9, gp = gpar(fontsize =13)), CC1plot, CC2plot, CC3plot, CC4plot, CC5plot, CC6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("Beer                                                                     Canavanine", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome", x=0.72, y=0.5, just ="left", gp = gpar(fontsize =13)))	
->>>>Suppl. Figure 3.pdf
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
 
-CN1data<-subset(data, Strain=='CN-100-1')
-CN2data<-subset(data, Strain=='CN-100-2')
-CN3data<-subset(data, Strain=='CN-100-3')
-CN4data<-subset(data, Strain=='CN-100-4')
-CN5data<-subset(data, Strain=='CN-100-5')
-CN6data<-subset(data, Strain=='CN-100-6')
-CW1data<-subset(data, Strain=='CW-100-1')
-CW2data<-subset(data, Strain=='CW-100-2')
-CW3data<-subset(data, Strain=='CW-100-3')
-CW4data<-subset(data, Strain=='CW-100-4')
-CW5data<-subset(data, Strain=='CW-100-5')
-CW6data<-subset(data, Strain=='CW-100-6')
+D4plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CB-100-5 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D4plot<- D4plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D4plot<-D4plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-CN1plot<-ggplot(CN1data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-1")
-CN2plot<-ggplot(CN2data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black"))  + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-2")
-CN3plot<-ggplot(CN3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-3")
-CN4plot<-ggplot(CN4data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-4")
-CN5plot<-ggplot(CN5data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black")) + ylim(0, 175) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-5")
-CN6plot<-ggplot(CN6data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-     scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CN-100-6")
+data<-read.table("CB-100-6.MeanCoverageBED_w_cum.bedgraph", header=TRUE)
+# Replace values that are 5x higher than average with NA
+data$Depth[data$Depth > (5 * mean(data$Depth))] <- NA
+data$Stand_Depth = data$Depth/mean(data$Depth, na.rm=TRUE)
+Adata<-data[grepl('Crneo', data$Chr), ] 
+boundaries<-read.table("chromosome_sizes_AD.txt", header=TRUE)
+Aboundaries<-boundaries[grepl('Crneo', boundaries$Chromo), ] 
 
-CW1plot<-ggplot(CW1data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black")) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
+A5plot<-ggplot(Adata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#8E8579"), 14 )) + ylim(0, 3) + theme_bw() +
     theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-1")
-CW2plot<-ggplot(CW2data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 125) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-2")
-CW3plot<-ggplot(CW3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22 )) + ylim(0, 125) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-3")
-CW4plot<-ggplot(CW4data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-4")
-CW5plot<-ggplot(CW5data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","grey", "black")) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-5")
-CW6plot<-ggplot(CW6data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-   scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black")) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CW-100-6")
+    panel.grid.minor.x = element_blank(), axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Aboundaries)){
+  rowDF<-Aboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  A5plot<- A5plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Aboundaries[nrow(Aboundaries),] 
+A5plot<-A5plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
 
-grid.arrange(CN1plot, CN2plot, CN3plot, CN4plot, CN5plot, CN6plot, CW1plot, CW2plot, CW3plot, CW4plot, CW5plot, CW6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("NaCl                                                                           Wine", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome                                                                     Chromosome", x=0.22, y=0.5, just ="left", gp = gpar(fontsize =13)))	
+Ddata<-data[grepl('Cryden', data$Chr), ] 
+Dboundaries<-boundaries[grepl('Cryden', boundaries$Chromo), ] 
 
->>>> Suppl. Figure 4.pdf
+D5plot<-ggplot(Ddata, aes(x=Cum_Position, y=Stand_Depth)) +      
+    geom_col(aes(color='as.factor(Chr)'), alpha=0.8, size=0.2) +
+    scale_color_manual(values = rep(c("#CEC4AF"), 14 )) + ylim(0, 3) + theme_bw() +
+    theme( legend.position="none",panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),  axis.title.x = element_blank(),
+    panel.grid.minor.y = element_blank(), panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(size=10), axis.text.x = element_text(size=10)) + ylab("CB-100-6 stand. depth") +
+    scale_x_continuous(breaks=c(0,2.5e+06,5.0e+06,7.5e+06,1e+07,1.25e+07,1.5e+07,1.75e+07,2.0e+07), 
+    labels=c(0,2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0)) +
+    geom_hline(yintercept=1, linetype="dashed", color = "green", size=0.2) +
+    geom_hline(yintercept=2, linetype="dashed", color = "red", size=0.2) +
+    geom_hline(yintercept=3, linetype="dashed", color = "blue", size=0.2) 
+ 
+for(i in 1:nrow(Dboundaries)){
+  rowDF<-Dboundaries[i,]
+  dfpos <-rowDF$CumBegin
+  D5plot<- D5plot + geom_vline(xintercept=dfpos, linetype="dashed",color = "black", size=0.1)
+}   
+lastline<-Dboundaries[nrow(Dboundaries),] 
+D5plot<-D5plot + geom_vline(xintercept=lastline$CumEnd, linetype="dashed",color = "black", size=0.1)
+plots<-list(A1plot, A2plot, A3plot, A4plot, A5plot, D1plot, D2plot, D3plot, D4plot, D5plot)
+pdf("crypto_coverage_Beer_AD_mapping.pdf", height = 8, width = 10)
+grid.arrange(grobs=plots, layout_matrix = rbind(c(1,2),c(6,7),c(3,4),c(8,9),c(5,NA),c(10,NA)))
+dev.off()
 
-CY1data<-subset(data, Strain=='CY-100-1')
-CY2data<-subset(data, Strain=='CY-100-2')
-CY3data<-subset(data, Strain=='CY-100-3')
-CY4data<-subset(data, Strain=='CY-100-4')
-CY5data<-subset(data, Strain=='CY-100-5')
-CY6data<-subset(data, Strain=='CY-100-6')
-P1data<-subset(data, Strain=='P1W10')
-P2data<-subset(data, Strain=='P2W10')
-P3data<-subset(data, Strain=='P3W10')
-P4data<-subset(data, Strain=='P4W10')
-P5data<-subset(data, Strain=='P5W10')
-P6data<-subset(data, Strain=='P6W10')
+# These figures became Figure 5 and Suppl. Figures 1-6.
 
-CY1plot<-ggplot(CY1data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-1")
-CY2plot<-ggplot(CY2data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "black","grey", "black","grey", "black","grey", "red","grey", "black","grey", "black"))  + ylim(0, 225) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-2")
-CY3plot<-ggplot(CY3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "orange","grey", "black","grey", "black"))  + ylim(0, 300) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-3")
-CY4plot<-ggplot(CY4data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-4")
-CY5plot<-ggplot(CY5data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-5")
-CY6plot<-ggplot(CY6data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "orange","grey", "black","grey", "black"))  + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("CY-100-6")
-
-P1plot<-ggplot(P1data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "red","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 350) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P1W10")
-P2plot<-ggplot(P2data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P2W10")
-P3plot<-ggplot(P3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "red","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 350) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P3W10")
-P4plot<-ggplot(P4data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "orange","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 300) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P4W10")
-P5plot<-ggplot(P5data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-    scale_color_manual(values = c("grey", "black","grey", "red","grey", "black","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 175) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P5W10")
-P6plot<-ggplot(P6data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.1) +
-   scale_color_manual(values = c("grey", "black","grey", "black","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black")) + ylim(0, 200) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-	panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("P6W10")
-
-grid.arrange(CY1plot, CY2plot, CY3plot, CY4plot, CY5plot, CY6plot, P1plot, P2plot, P3plot, P4plot, P5plot, P6plot,layout_matrix = cbind(c(1, 2, 3, 4, 5, 6), c(7, 8, 9, 10, 11, 12)), top = textGrob("YPD                                                                           Larvae", x=0.26, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosome                                                                     Chromosome", x=0.22, y=0.5, just ="left", gp = gpar(fontsize =13)))	
-
->>>>Suppl. Figure 5.pdf
-
-invitrodata<-subset(data, Strain=='SSD719_vitro')
-invivodata<-subset(data, Strain=='SSD719_vivo')
-EM3data<-subset(data, Strain=='EM3')
-YSB121data<-subset(data, Strain=='YSB121')
-
-invitroplot<-ggplot(invitrodata, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
-    scale_color_manual(values = c("grey", "orange","grey", "black","grey", "black","grey", "black","grey", "black","orange", "black","grey", "black")) + ylim(0, 100) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("SSD719 in vitro")
-invivoplot<-ggplot(invivodata, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
-    scale_color_manual(values = c("grey", "black","grey", "black","grey", "orange","grey", "black","red", "black","grey", "black","grey", "black"))  + ylim(0, 250) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("SSD719 in vivo")
-EM3plot<-ggplot(EM3data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("EM3")
-YSB121plot<-ggplot(YSB121data, aes(x=CumMid, y=Coverage)) +   
-    geom_point(aes(color=as.factor(Chromosome)), alpha=0.8, size=0.25) +
-    scale_color_manual(values = rep(c("grey", "black"), 22)) + ylim(0, 150) +
-	scale_x_continuous(label = mids$Chromo, breaks= mids$CumMid ) + theme_bw() +
-    theme( legend.position="none",panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(), axis.title.x = element_blank()) + ylab("YSB121")
-
-grid.arrange(invitroplot, invivoplot, EM3plot, YSB121plot,layout_matrix = cbind(c(1, 2, 3, 4)), top = textGrob("Ancestors", x=0.475, y=0.5, just ="left", gp = gpar(fontsize =14, face="bold")), bottom = textGrob("Chromosomes", x=0.45, y=0.5, just ="left", gp = gpar(fontsize =13)))
-
->>>>Suppl. Figure 6.pdf
+##############################
+######## SV DETECTION ########
+##############################
 
 # Next identify structural variants and deletions using smoove
 
@@ -960,7 +919,7 @@ perl filter_smoove_vcf.pl Crypto_Exp_SV-smoove.genotyped.vcf Crypto_Exp_SV-smoov
 # Determine how many mutations occurred and what their effects are on proteins
 # We are ignoring indels
 # Use the file crypto.LOH.snps.only.unfiltered.vcf 
-# We will use the data to due a lower stringency filtration
+# We will use the data to do a lower stringency filtration
 # Original filtration was: --filter-expression "BaseQRankSum < -5.0 || BaseQRankSum > 5.0 || DP > 5000.0 || MQ < 59.0 || QD < 5.0 || FS > 15.0 || ReadPosRankSum < -5.0 || ReadPosRankSum > 5.0 || QUAL < 1000 || SOR > 4.0" 
 # Minimal filtration
 gatk VariantFiltration \
@@ -977,7 +936,7 @@ gatk SelectVariants \
    -V vcf/crypto.LOH.snps.only.min_qualfiltered.vcf \
    -O vcf/crypto.LOH.snps.only.min_qualfiltered.pruned.vcf \
    --exclude-filtered \
->>>>crypto.LOH.snps.only.min_qualfiltered.pruned.vcf
+&&&&crypto.LOH.snps.only.min_qualfiltered.pruned.vcf
 
 # 977,743 SNPs in the min_qualfiltered set
 
