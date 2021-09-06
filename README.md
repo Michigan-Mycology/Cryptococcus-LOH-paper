@@ -1,5 +1,5 @@
 # Cryptococcus-LOH-paper
-Repository for Michelotti et al. (in prep), "Clonal evolution in serially passaged Cryptococcus neoformans x deneoformans hybrids reveals a heterogenous landscape of mitotic recombination" 
+Repository for Michelotti et al. (2021), "Clonal evolution in serially passaged Cryptococcus neoformans x deneoformans hybrids reveals a heterogenous landscape of genomic change". 
 
 Unless specified, code for Figures is written in R.
 
